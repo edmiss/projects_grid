@@ -1,0 +1,174 @@
+
+<head>
+    <title>Projects_Grid</title>
+    <link rel = 'stylesheet' href = '/home.css'>
+</head>
+<body>
+    <div class = 'container'>
+        <div class = 'container__row'>
+            <div class = 'container__col-12'>
+                <h1>PROJECTS_GRID</h1>
+            </div>   
+        </div>
+        <div class = 'container__row'>
+            <div class = 'container__col-12'>
+                <h3>Hello! This is a grid for projects in hackaday.io</h3>
+            </div>   
+        </div>
+        <div class = 'container__row'>
+            <div class = 'container__col-4'>
+                <a class = 'btn' id = 'prev'>Prev</a>
+            </div>   
+            <div class = 'container__col-4'>
+                <a class = 'btn'>Current:<span id = 'curr_page'>1</span></a>
+            </div>   
+            <div class = 'container__col-4'>
+                <a class = 'btn' id = 'next'>Next</a>
+            </div>   
+        </div>   
+        <div id = 'projects' class = 'container__row'>
+            <% if(projects.projects){projects.projects.forEach(function(project,index,array){ %>
+                <div class = 'container__col-6'>            
+                    <table>
+                        <% for(key in project){%>
+                            <% if (key === 'owner') continue %>
+                            <% if (key === 'owner_id'){ %>
+                                <tr>
+                                    <th>owner</th>
+                                    <td>
+                                        <div class = 'tooltip' id = "<%= project[key] %>">
+                                            <%=project.owner%>
+                                            <div class='tooltip_text'>Loading...</div>
+                                        </div>                                        
+                                    </td>
+                                </tr>
+                            <% } %>
+                            <tr><th><%=key%></th><td><%=project[key]%></td></tr>
+                        <% } %>
+                    </table>
+                </div>
+            <% })}else{%>
+                <div class = 'no__project'>
+                    <p>No project/Network Error</p>
+                </div>
+            <%}%>
+        </div>
+    </div>
+    <script type = 'text/javascript'>
+        const getPage = async (page_num)=>{
+            link = 'http://localhost:3000/projects/'+String(page_num);
+            return fetch(link,{headers:{
+                "Content_Type":"application/json; charset=utf-8"
+            }})
+            .then(res=>res.json())
+            .then(result=>{
+                return result
+            }).catch(error=>{
+                console.log(error)
+            });
+        };
+
+        const updatePage = (result)=>{
+            console.log('results page: '+result.page)
+            if (!result||!result.projects){
+                console.log('unable to update page using project results');
+                return
+            }
+            document.querySelector('#curr_page').innerHTML = String(result.page);
+            projects = result.projects;
+            document.querySelector('#projects').innerHTML = "";
+            new_inner_html = "";
+            projects.forEach((project,index,projects)=>{
+                new_inner_html+=`
+                <div class = 'container__col-6'>            
+                    <table>
+                        `
+                        +
+                        Object.entries(project).map(([key,value])=>{
+                            if(key==='owner') return;
+                            if(key==='owner_id'){
+                                return `
+                                        <tr>
+                                            <th>owner</th>
+                                            <td>
+                                                <div class = 'tooltip' id = "`+project[key]+`">
+                                                    `+project.owner+`
+                                                    <div class='tooltip_text'>Loading...</div>
+                                                </div>                                        
+                                            </td>
+                                        </tr>
+                                        `
+                                        +
+                                        `<tr><th>`+key+`</th><td>`+value+`</td></tr>`
+                            }
+                            return `<tr><th>`+key+`</th><td>`+value+`</td></tr>`
+                        }).join('')
+                        +
+                        `
+                    </table>
+                </div>
+                `
+            })
+            document.querySelector('#projects').innerHTML = new_inner_html;
+        }
+
+        const createTooltipsListener = ()=>{
+            let owners = document.querySelectorAll(".tooltip");
+            owners.forEach(function(element){
+                element.addEventListener('mouseover',function(event){
+                    // event.target.style.color = 'orange';
+                    link = 'http://localhost:3000/user/'+event.target.id;
+                    if(element.firstElementChild.innerHTML!='Loading...'){
+                        return
+                    }
+                    fetch(link,{headers:{
+                        "Content_Type":"application/json; charset=utf-8"
+                    }})
+                    .then(res=>res.json())
+                    .then(user_info=>{
+                        console.log(user_info)
+                        console.log(element.firstElementChild.innerHTML)
+                        user_html = "<table>";
+                        Object.entries(user_info).forEach(function([key,value]){
+                            user_html+=`
+                            <tr>
+                                <th>
+                                    `+key+`
+                                </th>
+                                <td>
+                                    `+value+`
+                                </td>
+                            </tr>
+                            `
+                        });
+                        user_html+="</table>";
+                        element.firstElementChild.innerHTML = user_html;
+                        
+                    })
+
+                },false)
+            })
+        };
+
+        const createButtonListener = () =>{
+            [['#prev',-1], ['#next',1]].forEach(function([id,dpage]){
+                    document.querySelector(id).addEventListener('click', (event)=>{
+                    current_page = Number(document.querySelector('#curr_page').innerText);
+                    target = current_page+dpage;
+                    if(target<=0 || target>=1000) return;
+                    if (!/^\d+$/.test(current_page)) current_page = 1;
+                    console.log('target: '+ target)
+                    getPage(target)
+                    .then(result=>{
+                        updatePage(result);
+                        createTooltipsListener();
+                    })
+                })
+            });
+        };
+
+        createTooltipsListener();
+        createButtonListener();
+
+    </script>
+</body>
